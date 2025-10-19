@@ -1,0 +1,48 @@
+# Compiled Object files
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.lib
+
+# Executables
+*.exe
+SeqList
+LinkList
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+
+# Build directories
+build/
+bin/
+obj/
+
+# DEV C++ files
+*.layout
+*.depend
+Makefile.win
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.swp
+*~
+

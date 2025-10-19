@@ -1,0 +1,916 @@
+# 第4章：单链表完整实现
+
+> 理解指针，掌握链式存储
+
+## 本章学习目标
+
+1. 理解单链表的存储结构
+2. 掌握指针操作的技巧
+3. 实现单链表的基本操作
+4. 对比顺序表和单链表的差异
+
+---
+
+## 第一部分：单链表的设计思想
+
+### 4.1 为什么需要链表？
+
+#### 顺序表的问题
+
+```
+问题1：大小固定
+int data[100];      // 只能存100个，太多了浪费，太少了不够
+
+问题2：插入删除慢
+插入一个元素，需要移动后面所有元素，O(n)
+
+问题3：内存浪费
+如果只用了10个位置，其他90个位置浪费了
+```
+
+#### 链表的解决方案
+
+- **动态分配**：需要多少就分配多少
+- **插入删除快**：只需改变指针，O(1)
+- **内存灵活**：不需要连续空间
+
+---
+
+### 4.2 单链表的物理结构
+
+#### 核心思想
+
+用指针连接各个节点，节点可以分散存储
+
+#### 形象比喻
+
+**单链表 = 寻宝游戏**
+- 每个地点（节点）有宝藏（数据）和下一个地点的线索（指针）
+- 从起点（头结点）开始，沿着线索一个一个找
+
+#### 节点结构
+
+```cpp
+struct Node {
+    int data;       // 数据域：存放数据
+    Node* next;     // 指针域：指向下一个节点
+};
+```
+
+#### 图解
+
+```
+逻辑结构：(10, 20, 30)
+
+物理结构：
+┌─────┬──────┐    ┌─────┬──────┐    ┌─────┬──────┐
+│     │ 1020 │───→│ 20  │ 1100 │───→│ 30  │ NULL │
+│ head│      │    │     │      │    │     │      │
+└─────┴──────┘    └─────┴──────┘    └─────┴──────┘
+  头结点            第1个节点          第2个节点
+
+地址：1000          1020              1100
+
+说明：
+• 头结点：不存数据，只存第一个节点的地址
+• 每个节点：data存数据，next存下一个节点地址
+• 最后节点：next为NULL（空指针），表示结束
+```
+
+#### 与顺序表对比
+
+```
+顺序表：
+地址  1000  1004  1008  1012  1016
+值     10    20    30    40    50
+      连续存储，通过下标访问
+
+单链表：
+节点1(地址2000): data=10, next=2100
+节点2(地址2100): data=20, next=2050  分散存储
+节点3(地址2050): data=30, next=NULL  通过指针连接
+```
+
+---
+
+### 4.3 头结点的作用
+
+#### 什么是头结点？
+
+**头结点 = 哨兵节点**
+- 不存储有效数据
+- 只存储第一个数据节点的地址
+
+#### 为什么需要头结点？
+
+简化边界条件处理
+
+**例子：插入第1个位置**
+
+```
+没有头结点：
+原链表：first → [10] → [20] → NULL
+插入5到第1个位置，需要：
+1. 创建新节点[5]
+2. [5]的next指向[10]
+3. first指向[5]  ← 需要特殊处理first指针
+
+有头结点：
+原链表：head → [10] → [20] → NULL
+插入5到第1个位置，需要：
+1. 创建新节点[5]
+2. [5]的next指向[10]
+3. head的next指向[5]  ← 与其他位置插入操作一致
+```
+
+**结论：** 头结点统一了插入、删除操作，不需要特殊处理第1个位置
+
+---
+
+### 4.4 单链表的类定义
+
+#### 第一步：定义节点结构
+
+```cpp
+template <typename DataType>
+struct Node {
+    DataType data;         // 数据域
+    Node<DataType>* next;  // 指针域
+};
+```
+
+#### 第二步：定义链表类
+
+```cpp
+template <typename DataType>
+class LinkList {
+public:
+    LinkList();                        // 创建空链表
+    LinkList(DataType a[], int n);     // 用数组创建
+    ~LinkList();                       // 析构函数
+    int Length();                      // 获取长度
+    DataType Get(int i);               // 按位查找
+    int Locate(DataType x);            // 按值查找
+    void Insert(int i, DataType x);    // 插入元素
+    DataType Delete(int i);            // 删除元素
+    int Empty();                       // 判断是否为空
+    void PrintList();                  // 打印所有元素
+    void Reverse();                    // 逆置
+    void Sort();                       // 排序
+    
+private:
+    Node<DataType>* first;             // 头指针
+};
+```
+
+#### 完整的头文件 LinkList.h
+
+```cpp
+#ifndef LINKLIST_H_INCLUDED
+#define LINKLIST_H_INCLUDED
+
+using namespace std;
+
+// 节点结构
+template <typename DataType>
+struct Node {
+    DataType data;
+    Node<DataType>* next;
+};
+
+// 单链表类
+template <typename DataType>
+class LinkList {
+public:
+    LinkList();
+    LinkList(DataType a[], int n);
+    ~LinkList();
+    int Length();
+    DataType Get(int i);
+    int Locate(DataType x);
+    void Insert(int i, DataType x);
+    DataType Delete(int i);
+    int Empty();
+    void PrintList();
+    void Reverse();
+    void Sort();
+    
+private:
+    Node<DataType>* first;
+};
+
+#endif
+```
+
+---
+
+## 第二部分：构造和析构函数
+
+### 4.5 无参构造函数
+
+#### 功能
+
+创建一个空链表（只有头结点）
+
+#### 思路
+
+1. 分配头结点
+2. 头结点的next设为NULL
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+LinkList<DataType>::LinkList() {
+    first = new Node<DataType>;    // 创建头结点
+    first->next = nullptr;         // 头结点的next置空
+}
+```
+
+#### 图解
+
+```
+创建后的状态：
+┌────┬──────┐
+│    │ NULL │
+│head│      │
+└────┴──────┘
+  first
+
+这是一个空链表，没有数据节点
+```
+
+#### 指针操作详解
+
+```cpp
+first = new Node<DataType>;
+// new：在堆上分配一个Node
+// 返回这个Node的地址
+// first存储这个地址
+
+first->next = nullptr;
+// first是指针，通过->访问成员
+// ->等价于 (*first).next
+// nullptr表示空指针（C++11标准）
+```
+
+---
+
+### 4.6 有参构造函数（头插法）
+
+#### 功能
+
+用数组创建链表
+
+#### 两种方法
+
+1. **头插法**：从头部插入，结果逆序
+2. **尾插法**：从尾部插入，结果顺序
+
+教材使用头插法，我们先学习这种方法。
+
+#### 头插法思路
+
+1. 创建空链表（只有头结点）
+2. 遍历数组，依次将元素插入到头结点之后
+
+#### 为什么叫头插法？
+
+每次都插入到"头部"（头结点之后的第1个位置）
+
+#### 详细图解
+
+```
+数组：arr = {1, 2, 3}
+
+步骤1：创建空链表
+head → NULL
+
+步骤2：插入1
+创建节点s，s.data=1
+s.next = head.next  (s → NULL)
+head.next = s       (head → s)
+结果：head → [1] → NULL
+
+步骤3：插入2
+创建节点s，s.data=2
+s.next = head.next  (s → [1] → NULL)
+head.next = s       (head → s)
+结果：head → [2] → [1] → NULL
+
+步骤4：插入3
+创建节点s，s.data=3
+s.next = head.next  (s → [2] → [1] → NULL)
+head.next = s       (head → s)
+结果：head → [3] → [2] → [1] → NULL
+
+最终：数组{1,2,3} → 链表(3,2,1) 逆序！
+```
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+LinkList<DataType>::LinkList(DataType a[], int n) {
+    // 步骤1：初始化空链表
+    first = new Node<DataType>;
+    first->next = nullptr;
+    
+    // 步骤2：头插法建立链表
+    for (int i = 0; i < n; i++) {
+        Node<DataType>* s = nullptr;      // 创建新节点指针
+        s = new Node<DataType>;           // 分配内存
+        s->data = a[i];                   // 设置数据域
+        s->next = first->next;            // 新节点指向原来的第1个节点
+        first->next = s;                  // 头结点指向新节点
+    }
+}
+```
+
+#### 使用示例
+
+```cpp
+int arr[3] = {10, 20, 30};
+LinkList<int> L(arr, 3);
+L.PrintList();    // 输出：30 20 10（逆序）
+```
+
+**时间复杂度：** O(n) - 循环n次，每次O(1)操作
+
+---
+
+### 4.7 析构函数
+
+#### 功能
+
+销毁链表，释放所有节点的内存
+
+#### 为什么需要析构函数？
+
+- 链表节点是用 `new` 分配的
+- 必须用 `delete` 释放，否则内存泄漏
+
+#### 思路
+
+从头到尾，依次删除每个节点
+
+#### 详细图解
+
+```
+原链表：head → [10] → [20] → [30] → NULL
+
+步骤1：
+p = first
+first = first->next    (first指向[10])
+delete p               (删除head)
+p = first              (p指向[10])
+
+步骤2：
+first = first->next    (first指向[20])
+delete p               (删除[10])
+p = first              (p指向[20])
+
+步骤3：
+first = first->next    (first指向[30])
+delete p               (删除[20])
+p = first              (p指向[30])
+
+步骤4：
+first = first->next    (first指向NULL)
+delete p               (删除[30])
+p = first              (p为NULL，循环结束)
+```
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+LinkList<DataType>::~LinkList() {
+    Node<DataType>* p = first;
+    
+    while (first != nullptr) {
+        first = first->next;     // first后移
+        delete p;                // 删除原first
+        p = first;               // p跟上first
+    }
+}
+```
+
+#### 常见错误 ⚠️
+
+```cpp
+// ❌ 错误写法
+while (p != nullptr) {
+    delete p;          // 删除p后
+    p = p->next;       // p已经被删除，p->next非法！
+}
+
+// ✓ 正确写法：先保存next，再删除
+while (p != nullptr) {
+    Node<DataType>* temp = p->next;
+    delete p;
+    p = temp;
+}
+```
+
+---
+
+## 第三部分：基本操作的实现
+
+### 4.8 遍历打印（PrintList）
+
+#### 功能
+
+输出链表中的所有元素
+
+#### 思路
+
+使用工作指针p，从第一个数据节点开始遍历
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+void LinkList<DataType>::PrintList() {
+    Node<DataType>* p = first->next;    // p指向第1个数据节点
+    
+    while (p != nullptr) {
+        cout << p->data << " ";         // 输出当前节点的数据
+        p = p->next;                    // p移动到下一个节点
+    }
+    
+    cout << endl;
+}
+```
+
+#### 图解
+
+```
+链表：head → [10] → [20] → [30] → NULL
+
+p = first->next      p指向[10]
+输出10，p=p->next    p指向[20]
+输出20，p=p->next    p指向[30]
+输出30，p=p->next    p指向NULL，循环结束
+```
+
+#### 工作指针的作用
+
+- `first` 不能动（必须保持指向头结点）
+- `p` 是工作指针，可以自由移动
+- 类似于顺序表中的循环变量 `i`
+
+**时间复杂度：** O(n)
+
+---
+
+### 4.9 求链表长度（Length）
+
+#### 功能
+
+返回链表中数据节点的个数
+
+#### 思路
+
+遍历链表，用计数器count统计节点数
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+int LinkList<DataType>::Length() {
+    Node<DataType>* p = first->next;    // p指向第1个数据节点
+    int count = 0;                      // 计数器初始化为0
+    
+    while (p != nullptr) {
+        p = p->next;                    // p后移
+        count++;                        // 计数加1
+    }
+    
+    return count;
+}
+```
+
+#### 图解
+
+```
+链表：head → [10] → [20] → [30] → NULL
+
+count=0, p指向[10]
+p后移，count=1
+p指向[20]
+p后移，count=2
+p指向[30]
+p后移，count=3
+p指向NULL，循环结束
+返回count=3
+```
+
+#### 注意
+
+头结点不计入长度！
+
+**时间复杂度：** O(n)
+
+---
+
+### 4.10 按位查找（Get）
+
+#### 功能
+
+获取第i个节点的数据（i从1开始）
+
+#### 思路
+
+1. 从第1个数据节点开始
+2. 用计数器count记录当前是第几个
+3. 当count==i时，返回当前节点的数据
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+DataType LinkList<DataType>::Get(int i) {
+    Node<DataType>* p = first->next;    // p指向第1个节点
+    int count = 1;                      // 当前是第1个
+    
+    // 移动到第i个节点
+    while (p != nullptr && count < i) {
+        p = p->next;
+        count++;
+    }
+    
+    // 检查是否找到
+    if (p == nullptr) {
+        throw "查找位置错误";
+    }
+    
+    return p->data;
+}
+```
+
+#### 图解
+
+```
+链表：head → [10] → [20] → [30] → NULL
+查找第2个元素
+
+count=1, p指向[10]
+count<2，继续
+p后移，count=2
+count==2，找到了！
+返回p->data = 20
+```
+
+#### 与顺序表对比
+
+```
+顺序表：
+Get(i) → return data[i-1]
+直接访问，O(1)
+
+单链表：
+Get(i) → 从头遍历i-1次
+顺序访问，O(i) = O(n)
+```
+
+**时间复杂度：** O(n)
+
+---
+
+### 4.11 按值查找（Locate）
+
+#### 功能
+
+查找值为x的节点，返回其位置
+
+#### 思路
+
+遍历链表，找到第一个data==x的节点
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+int LinkList<DataType>::Locate(DataType x) {
+    Node<DataType>* p = first->next;
+    int count = 1;
+    
+    while (p != nullptr) {
+        if (p->data == x) {
+            return count;    // 找到了，返回位置
+        }
+        p = p->next;
+        count++;
+    }
+    
+    return 0;                // 没找到，返回0
+}
+```
+
+**时间复杂度：** O(n)
+
+---
+
+### 4.12 插入操作（Insert）⭐ 重点难点
+
+#### 功能
+
+在第i个位置插入元素x
+
+#### 思路
+
+1. 找到第i-1个节点
+2. 创建新节点s
+3. s插入到第i-1个节点之后
+
+#### 为什么要找第i-1个节点？
+
+因为要修改第i-1个节点的next指针
+
+#### 详细图解
+
+```
+原链表：head → [10] → [20] → [30] → NULL
+位置：    0      1      2      3
+
+任务：在第2个位置插入15
+
+步骤1：找到第i-1=1个节点
+p指向[10]（第1个节点）
+
+步骤2：创建新节点
+s = new Node
+s->data = 15
+
+步骤3：插入（关键！顺序不能错）
+s->next = p->next    s指向[20]
+head → [10] → [20] → [30] → NULL
+        ↑      ↑
+        p      s.next
+
+p->next = s          p指向s
+head → [10] → [15] → [20] → [30] → NULL
+        ↑      ↑
+        p      s
+
+为什么s->next要先执行？
+如果先执行p->next=s，就找不到原来的[20]了！
+```
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+void LinkList<DataType>::Insert(int i, DataType x) {
+    Node<DataType>* p = first;          // p从头结点开始
+    Node<DataType>* s = nullptr;
+    int count = 0;                      // 头结点算第0个
+    
+    // 步骤1：找到第i-1个节点
+    while (p != nullptr && count < i - 1) {
+        p = p->next;
+        count++;
+    }
+    
+    // 步骤2：检查位置是否合法
+    if (p == nullptr) {
+        throw "插入位置错误";
+    }
+    
+    // 步骤3：创建新节点
+    s = new Node<DataType>;
+    s->data = x;
+    
+    // 步骤4：插入（注意顺序）
+    s->next = p->next;      // 先连后面
+    p->next = s;            // 再连前面
+}
+```
+
+#### 插入到第1个位置
+
+```
+原链表：head → [10] → [20] → NULL
+
+Insert(1, 5)
+i-1=0，找到第0个（head）
+s->data = 5
+s->next = head->next  (s → [10])
+head->next = s        (head → s)
+结果：head → [5] → [10] → [20] → NULL
+```
+
+#### 插入到末尾
+
+```
+原链表：head → [10] → [20] → NULL
+长度=2
+
+Insert(3, 30)
+i-1=2，找到第2个([20])
+s->data = 30
+s->next = [20]->next  (s → NULL)
+[20]->next = s        ([20] → s)
+结果：head → [10] → [20] → [30] → NULL
+```
+
+**时间复杂度：** O(n)
+- 查找第i-1个节点：O(i) = O(n)
+- 插入操作本身：O(1)
+
+---
+
+### 4.13 删除操作（Delete）⭐ 重点难点
+
+#### 功能
+
+删除第i个节点，返回其数据
+
+#### 思路
+
+1. 找到第i-1个节点p
+2. 用q记录第i个节点（要删除的）
+3. 让p->next跳过q
+4. 删除q
+5. 返回q的数据
+
+#### 详细图解
+
+```
+原链表：head → [10] → [20] → [30] → NULL
+位置：    0      1      2      3
+
+任务：删除第2个节点
+
+步骤1：找到第i-1=1个节点
+p指向[10]
+
+步骤2：q指向要删除的节点
+q = p->next
+q指向[20]
+
+步骤3：保存要删除的数据
+x = q->data = 20
+
+步骤4：摘链
+p->next = q->next
+head → [10] ─────→ [30] → NULL
+        ↑          ↑
+        p          q->next
+[20]被跳过了！
+
+步骤5：删除节点
+delete q
+释放[20]的内存
+
+步骤6：返回x=20
+```
+
+#### 代码实现
+
+```cpp
+template <typename DataType>
+DataType LinkList<DataType>::Delete(int i) {
+    DataType x;
+    Node<DataType>* p = first;          // p从头结点开始
+    Node<DataType>* q = nullptr;
+    int count = 0;
+    
+    // 步骤1：找到第i-1个节点
+    while (p != nullptr && count < i - 1) {
+        p = p->next;
+        count++;
+    }
+    
+    // 步骤2：检查是否合法
+    if (p == nullptr || p->next == nullptr) {
+        throw "删除位置错误";
+    }
+    
+    // 步骤3：q指向要删除的节点
+    q = p->next;
+    
+    // 步骤4：保存数据
+    x = q->data;
+    
+    // 步骤5：摘链
+    p->next = q->next;
+    
+    // 步骤6：删除节点
+    delete q;
+    
+    // 步骤7：返回数据
+    return x;
+}
+```
+
+#### 删除第1个节点
+
+```
+原链表：head → [10] → [20] → [30] → NULL
+
+Delete(1)
+i-1=0，p指向head
+q = head->next      (q指向[10])
+x = 10
+head->next = [10]->next  (head → [20])
+delete [10]
+结果：head → [20] → [30] → NULL
+```
+
+**时间复杂度：** O(n)
+- 查找第i-1个节点：O(i) = O(n)
+- 删除操作本身：O(1)
+
+---
+
+## 第四部分：高级操作
+
+### 4.14 逆置操作（Reverse）
+
+详见：[第5章：高级算法实现](05-advanced-algorithms.md)
+
+### 4.15 排序操作（Sort）
+
+详见：[第5章：高级算法实现](05-advanced-algorithms.md)
+
+---
+
+## 第4章小结
+
+### 核心知识点
+
+✅ 单链表用指针连接节点  
+✅ 头结点简化边界处理  
+✅ 工作指针p用于遍历  
+✅ **插入**：找第i-1个，先连后再连前  
+✅ **删除**：找第i-1个，摘链后delete  
+✅ 插入删除本身O(1)，但查找O(n)  
+
+### 顺序表 vs 单链表
+
+| 特性 | 顺序表 | 单链表 |
+|------|--------|--------|
+| 存储方式 | 连续 | 分散 |
+| 访问速度 | O(1) | O(n) |
+| 插入删除 | O(n) | O(1)* |
+| 空间利用 | 固定 | 灵活 |
+| 额外空间 | 无 | 指针域 |
+
+*注：不包括查找时间
+
+---
+
+## 练习题
+
+### 练习1：手动模拟
+
+原链表：`head → [5] → [10] → [15] → NULL`  
+执行：`Insert(2, 8)`  
+画出每一步的指针变化
+
+### 练习2：思考题
+
+为什么插入时 `s->next=p->next` 要在 `p->next=s` 之前？  
+如果顺序反了会怎样？
+
+### 练习3：实现尾插法
+
+修改有参构造函数，使用尾插法建立链表，  
+让链表元素顺序与数组一致。
+
+**提示：** 需要额外的尾指针
+
+---
+
+### 第3章练习题答案
+
+**练习1：**
+```cpp
+template <typename DataType>
+int SeqList<DataType>::Empty() {
+    return (length == 0) ? 1 : 0;
+}
+```
+
+**练习2：**
+```
+{5,10,15,20}，Insert(2,8)
+j=4: data[4]=data[3]=20
+j=3: data[3]=data[2]=15
+j=2: data[2]=data[1]=10
+data[1]=8
+结果：{5,8,10,15,20}
+```
+
+**练习3：**  
+插入从后往前：避免覆盖未移动的元素  
+删除从前往后：直接覆盖被删除的元素  
+如果反过来，会导致数据丢失
+
+---
+
+**下一章：** [第5章：高级算法实现](05-advanced-algorithms.md) - 逆置与排序的完整解析
+
+[返回目录](INDEX.md)
