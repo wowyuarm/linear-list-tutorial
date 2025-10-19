@@ -4,7 +4,6 @@
 
 [![Language](https://img.shields.io/badge/language-C++-blue.svg)](https://isocpp.org/)
 [![Standard](https://img.shields.io/badge/C++-11-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B11)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## 📖 项目简介
 
